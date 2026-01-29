@@ -171,6 +171,84 @@ Ollama is free and runs locally, so all model costs are set to $0.
 
 For auto-discovered models, Moltbot uses the context window reported by Ollama when available, otherwise it defaults to `8192`. You can override `contextWindow` and `maxTokens` in explicit provider config.
 
+### Tool calling behavior
+
+**Important:** Local Ollama models are automatically configured to run in **LLM-only mode** (tools disabled) when using the `--local` flag with `moltbot agent`. This prevents tool calling loops that can occur with smaller local models.
+
+**Why tools are disabled:**
+- Many Ollama models (especially smaller ones like 7B-14B params) struggle with tool use
+- They tend to repeatedly call tools (like `tts`) instead of responding directly
+- This creates infinite loops where the model calls a tool → receives result → calls the same tool again
+
+**What this means:**
+- Ollama models work great for conversational text responses
+- Built-in Moltbot tools (file operations, web search, etc.) are not available
+- This is a trade-off for stable, predictable local LLM conversations
+
+**Example:**
+
+```bash
+# Works great - pure conversation
+pnpm moltbot agent --local --message "介绍一下你自己" --to "+8615555550123"
+# Response: 你好！我是通义千问，是由阿里云研发的超大规模语言模型...
+
+# Tools are automatically disabled for Ollama
+# No TTS calls, no file operations, just clean text responses
+```
+
+**Technical details:**
+When `providerOverride === "ollama"`, Moltbot automatically sets `disableTools: true` in `runEmbeddedPiAgent` to ensure stable operation with local models.
+
+### Auth profile setup
+
+For `--local` mode, you need to configure an auth profile:
+
+```bash
+# Create auth profile directory
+mkdir -p ~/.clawdbot/agents/main/agent
+
+# Create auth profile
+cat > ~/.clawdbot/agents/main/agent/auth-profiles.json << 'EOF'
+{
+  "version": 1,
+  "profiles": {
+    "ollama-local": {
+      "type": "api_key",
+      "provider": "ollama",
+      "key": "ollama"
+    }
+  }
+}
+EOF
+```
+
+This is a one-time setup. The API key "ollama" is just a placeholder since Ollama doesn't require real authentication.
+
+### Using with CLI
+
+Complete workflow for using Ollama with Moltbot CLI:
+
+```bash
+# 1. Make sure Ollama is running with a model loaded
+ollama pull qwen2.5:7b
+ollama list  # Verify model is available
+
+# 2. Set default model
+pnpm moltbot models set ollama/qwen2.5:7b
+
+# 3. Start conversations
+pnpm moltbot agent --local --message "你好" --to "+8615555550123"
+```
+
+**Session management:**
+- Each `--to` number creates a separate conversation session
+- Sessions accumulate context until the model's context window is full
+- When context is full (`<no_reply>` appears), clear sessions:
+
+```bash
+rm -rf ~/.moltbot/agents/main/sessions/*.jsonl
+```
+
 ## Troubleshooting
 
 ### Ollama not detected
@@ -210,6 +288,51 @@ ps aux | grep ollama
 
 # Or restart Ollama
 ollama serve
+```
+
+### Model returns `<no_reply>`
+
+This happens when the context window is full. Clear the session and start fresh:
+
+```bash
+rm -rf ~/.moltbot/agents/main/sessions/*.jsonl
+```
+
+Then retry your message. Each model has a limited context window (e.g., qwen2.5:7b has 4096 tokens), and long conversations will eventually fill it.
+
+### Node version error
+
+Moltbot requires Node 22+. If you see version errors:
+
+```bash
+# Install Node 22
+brew install node@22
+
+# Add to PATH (add to ~/.zshrc for persistence)
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+
+# Verify
+node --version  # Should show v22.x.x
+```
+
+### API key errors
+
+If you see "No API key found for provider ollama", set up an auth profile:
+
+```bash
+mkdir -p ~/.clawdbot/agents/main/agent
+cat > ~/.clawdbot/agents/main/agent/auth-profiles.json << 'EOF'
+{
+  "version": 1,
+  "profiles": {
+    "ollama-local": {
+      "type": "api_key",
+      "provider": "ollama",
+      "key": "ollama"
+    }
+  }
+}
+EOF
 ```
 
 ## See Also
