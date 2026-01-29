@@ -350,15 +350,6 @@ async function buildVeniceProvider(): Promise<ProviderConfig> {
   };
 }
 
-async function buildOllamaProvider(): Promise<ProviderConfig> {
-  const models = await discoverOllamaModels();
-  return {
-    baseUrl: OLLAMA_BASE_URL,
-    api: "openai-completions",
-    models,
-  };
-}
-
 export async function resolveImplicitProviders(params: {
   agentDir: string;
 }): Promise<ModelsConfig["providers"]> {
@@ -410,12 +401,15 @@ export async function resolveImplicitProviders(params: {
     };
   }
 
-  // Ollama provider - only add if explicitly configured
-  const ollamaKey =
-    resolveEnvApiKeyVarName("ollama") ??
-    resolveApiKeyFromProfiles({ provider: "ollama", store: authStore });
-  if (ollamaKey) {
-    providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
+  // Ollama provider - auto-detect if local service is available
+  const ollamaModels = await discoverOllamaModels();
+  if (ollamaModels.length > 0) {
+    providers.ollama = {
+      baseUrl: OLLAMA_BASE_URL,
+      api: "openai-completions",
+      models: ollamaModels,
+      apiKey: "ollama", // Placeholder - Ollama doesn't require real API key for local usage
+    };
   }
 
   return providers;
