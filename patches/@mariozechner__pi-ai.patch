@@ -1,0 +1,17 @@
+diff --git a/dist/stream.js b/dist/stream.js
+index 81ea2d0fc5ba2f32eca27d09ad781dd23ceac43d..df1709e04bd7a0a4af82445ba0fae8a044930b44 100644
+--- a/dist/stream.js
++++ b/dist/stream.js
+@@ -146,6 +146,12 @@ export function streamSimple(model, context, options) {
+         const providerOptions = mapOptionsForApi(model, options, undefined);
+         return stream(model, context, providerOptions);
+     }
++    // Ollama runs locally and doesn't require a real API key
++    else if (model.provider === "ollama") {
++        const apiKey = options?.apiKey || getEnvApiKey(model.provider) || "ollama";
++        const providerOptions = mapOptionsForApi(model, options, apiKey);
++        return stream(model, context, providerOptions);
++    }
+     const apiKey = options?.apiKey || getEnvApiKey(model.provider);
+     if (!apiKey) {
+         throw new Error(`No API key for provider: ${model.provider}`);
