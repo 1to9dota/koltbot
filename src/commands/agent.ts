@@ -429,6 +429,8 @@ export async function agentCommand(
             prompt: body,
             images: opts.images,
             clientTools: opts.clientTools,
+            // Disable tools for Ollama provider (local models don't handle tools well)
+            disableTools: providerOverride === "ollama",
             provider: providerOverride,
             model: modelOverride,
             authProfileId,
