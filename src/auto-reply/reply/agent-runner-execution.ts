@@ -271,6 +271,8 @@ export async function runAgentTurnWithFallback(params: {
             })(),
             bashElevated: params.followupRun.run.bashElevated,
             timeoutMs: params.followupRun.run.timeoutMs,
+            // Disable tools for Ollama provider (local models don't handle tools well)
+            disableTools: provider === "ollama",
             runId,
             images: params.opts?.images,
             abortSignal: params.opts?.abortSignal,
